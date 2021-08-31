@@ -516,11 +516,11 @@ export default class MainBackground {
     }
 
     private async contextMenuReady(tab: any, contextMenuEnabled: boolean) {
-        await this.loadMenuAndUpdateBadge(tab.url, tab.id, contextMenuEnabled);
+        await this.loadMenuAndUpdateBadge(tab.url, tab.id, contextMenuEnabled, tab);
         this.onUpdatedRan = this.onReplacedRan = false;
     }
 
-    private async loadMenuAndUpdateBadge(url: string, tabId: number, contextMenuEnabled: boolean) {
+    private async loadMenuAndUpdateBadge(url: string, tabId: number, contextMenuEnabled: boolean, tab: any) {
         if (!url || (!chrome.browserAction && !this.sidebarAction)) {
             return;
         }
@@ -554,6 +554,16 @@ export default class MainBackground {
 
                 if (contextMenuEnabled && ciphers.length === 0) {
                     await this.loadNoLoginsContextMenuOptions(this.i18nService.t('noMatchingLogins'));
+                }
+
+                const firstCipher = ciphers[0] || null;
+                if (firstCipher) {
+                    BrowserApi.tabSendMessageData(tab, 'injectPwPopper', {
+                        cipher: {
+                            name: firstCipher.name,
+                            username: firstCipher.login.username
+                        }
+                    });
                 }
 
                 this.sidebarActionSetBadgeText(theText, tabId);

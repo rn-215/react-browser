@@ -1,3 +1,5 @@
+import { createPopper } from '@popperjs/core';
+
 !(function () {
     /*
     1Password Extension
@@ -39,6 +41,38 @@
     6. Rename com.agilebits.* stuff to com.bitwarden.*
     7. Remove "some useful globals" on window
     */
+
+    function getElementByOpId(theOpId) {
+        var theElement;
+        if (void 0 === theOpId || null === theOpId) {
+            return null;
+        }
+        try {
+            var elements = Array.prototype.slice.call(selectAllFromDoc('input, select, button'));
+            var filteredElements = elements.filter(function (o) {
+                return o.opid == theOpId;
+            });
+            if (0 < filteredElements.length) {
+                theElement = filteredElements[0],
+                    1 < filteredElements.length && console.warn('More than one element found with opid ' + theOpId);
+            } else {
+                var elIndex = parseInt(theOpId.split('__')[1], 10);
+                isNaN(elIndex) || (theElement = elements[elIndex]);
+            }
+        } catch (e) {
+            console.error('An unexpected error occurred: ' + e);
+        } finally {
+            return theElement;
+        }
+    }
+
+    function selectAllFromDoc(theSelector) {
+        var d = document, elements = [];
+        try {
+            elements = d.querySelectorAll(theSelector);
+        } catch (e) { }
+        return elements;
+    }
 
     function collect(document, undefined) {
         // START MODIFICATION
@@ -935,40 +969,6 @@
             return currentEl ? -1 !== 'email text password number tel url'.split(' ').indexOf(el.type || '') : false;
         }
 
-        // find the element for this operation
-        function getElementByOpId(theOpId) {
-            var theElement;
-            if (void 0 === theOpId || null === theOpId) {
-                return null;
-            }
-            try {
-                var elements = Array.prototype.slice.call(selectAllFromDoc('input, select, button'));
-                var filteredElements = elements.filter(function (o) {
-                    return o.opid == theOpId;
-                });
-                if (0 < filteredElements.length) {
-                    theElement = filteredElements[0],
-                        1 < filteredElements.length && console.warn('More than one element found with opid ' + theOpId);
-                } else {
-                    var elIndex = parseInt(theOpId.split('__')[1], 10);
-                    isNaN(elIndex) || (theElement = elements[elIndex]);
-                }
-            } catch (e) {
-                console.error('An unexpected error occurred: ' + e);
-            } finally {
-                return theElement;
-            }
-        }
-
-        // helper for doc.querySelectorAll
-        function selectAllFromDoc(theSelector) {
-            var d = document, elements = [];
-            try {
-                elements = d.querySelectorAll(theSelector);
-            } catch (e) { }
-            return elements;
-        }
-
         // focus an element and optionally re-set its value after focusing
         function doFocusElement(el, setValue) {
             if (setValue) {
@@ -991,6 +991,124 @@
     End 1Password Extension
     */
 
+    function injectPwPopper(document, msg, pageDetails) {
+        const whiteList = ["email", "e-mail", "password", "username", "user", "user-id", "user_id", "login"];
+        const fields = pageDetails.fields.filter(field => field.visible && (whiteList.indexOf(field.type.toLowerCase()) !== -1 || whiteList.indexOf(field.htmlName.toLowerCase()) !== -1 || whiteList.indexOf(field.htmlID.toLowerCase()) !== -1));
+        const elements = fields.map(field => getElementByOpId(field.opid));
+        const cipher = msg.data.cipher;
+
+        if (elements.length) {
+            const pwPopId = "__bitwarden_password_popper__";
+            let popEl = null;
+            if (!document.querySelector(`#${pwPopId}`)) {
+                popEl = document.createElement("div");
+                popEl.setAttribute("id", pwPopId);
+                popEl.innerHTML = `
+                <div class="suggestion">
+                    <img src='http://www.google.com/s2/favicons?sz=64&domain=${window.location.hostname}' />
+                    <div class="info">
+                        <div class="site">${cipher.name}</div>
+                        <div class="username">${cipher.username}</div>
+                    </div>
+                </div>
+                <div class="note">Cmd + Shift + L to fill</div>
+                `;
+
+                const styleSheetEl = document.createElement("style");
+                styleSheetEl.type = "text/css";
+                styleSheetEl.innerText = `
+                    #${pwPopId} {
+                        min-width: 200px;
+                        background: #fff;
+                        box-shadow: 0 0.250em 0.375em rgba(50,50,93,.12), 0 0.063em 0.188em rgba(0,0,0,.14);
+                        border: 1px solid #eee;
+                        border-radius: 3px;
+                        color: #000;
+                        display: none;
+                    }
+
+                    #${pwPopId} .suggestion {
+                        display: flex;
+                        padding: 10px;
+                        border-bottom: 1px solid #eee;
+                    }
+
+                    #${pwPopId} .suggestion .info {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        margin-left: 8px;
+                    }
+
+                    #${pwPopId} .suggestion img {
+                        width: 40px;
+                        height: 40px;
+                    }
+
+                    #${pwPopId} .suggestion .site {
+                        font-weight: bold;
+                    }
+
+                    #${pwPopId} .suggestion .username {
+                    }
+
+                    #${pwPopId} .note {
+                        opacity: 0.5;
+                        font-size: 0.8em;
+                        padding: 6px 10px;
+                    }
+
+                    #${pwPopId}[data-show] {
+                        display: block;
+                    }
+                `;
+
+                document.body.appendChild(popEl);
+                document.body.appendChild(styleSheetEl);
+            }
+
+            // insert icons
+            elements.forEach(el => {
+                el.autocomplete = "off";
+                el.style.backgroundImage = `url('https://api.iconify.design/heroicons-solid/annotation.svg?color=%23666&width=20&height=20')`;
+                el.style.backgroundRepeat = "no-repeat";
+                el.style.backgroundPosition = "center right 5px";
+                window.__bitwarden_popper = createPopper(el, document.querySelector(`#${pwPopId}`), {
+                    placement: 'bottom-end',
+                    modifiers: [
+                        {
+                            name: 'offset',
+                            options: {
+                                offset: [0, 4],
+                            },
+                        }
+                    ]
+                });
+
+                const showEvents = ['focus'];
+                const hideEvents = ['blur'];
+
+                const show = () => {
+                    document.querySelector(`#${pwPopId}`).setAttribute('data-show', '');
+                    window.__bitwarden_popper.update();
+                };
+
+                const hide = () => {
+                    document.querySelector(`#${pwPopId}`).removeAttribute('data-show');
+                };
+
+                showEvents.forEach(event => {
+                    el.addEventListener(event, show);
+                });
+
+                hideEvents.forEach(event => {
+                    el.addEventListener(event, hide);
+                });
+
+            });
+        }
+    }
+
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         if (msg.command === 'collectPageDetails') {
             var pageDetails = collect(document);
@@ -1001,6 +1119,13 @@
                 details: pageDetailsObj,
                 sender: msg.sender
             });
+            sendResponse();
+            return true;
+        }
+        else if (msg.command === 'injectPwPopper') {
+            const pageDetails = collect(document);
+            const pageDetailsObj = JSON.parse(pageDetails);
+            injectPwPopper(document, msg, pageDetailsObj);
             sendResponse();
             return true;
         }
