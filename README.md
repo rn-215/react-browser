@@ -1,3 +1,13 @@
+# What the fork?
+
+This is my fork of the Bitwarden Browser Extension, to add the features I wanted, for example, the popover to select multiple accounts when focusing on a login form input.
+
+![](./demo.gif)
+
+If you somehow find this repository, and liked it, **please do not install it**, you have no reason to trust me, but you're welcomed to fork the addon yourself and copy whatever change I made here to your own fork.
+
+---
+
 [![Github Workflow build on master](https://github.com/bitwarden/browser/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/bitwarden/browser/actions/workflows/build.yml?query=branch:master)
 [![Crowdin](https://d322cqt584bo4o.cloudfront.net/bitwarden-browser/localized.svg)](https://crowdin.com/project/bitwarden-browser)
 [![Join the chat at https://gitter.im/bitwarden/Lobby](https://badges.gitter.im/bitwarden/Lobby.svg)](https://gitter.im/bitwarden/Lobby)

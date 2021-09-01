@@ -124,6 +124,24 @@ export default class RuntimeBackground {
             case 'bgReseedStorage':
                 await this.main.reseedStorage();
                 break;
+            case 'cipherSuggestionSelected':
+                const cipherId = msg.cipherId;
+                const ciphers = await this.cipherService.getAllDecrypted();
+                const cipher = ciphers.find(c => c.id === cipherId);
+                if (cipher == null) {
+                    return;
+                }
+                const tab = await BrowserApi.getTabFromCurrentWindow();
+                if (tab == null) {
+                    return;
+                }
+                this.main.loginToAutoFill = cipher;
+                BrowserApi.tabSendMessage(tab, {
+                    command: 'collectPageDetails',
+                    tab: tab,
+                    sender: 'contextMenu',
+                });
+                break;
             case 'collectPageDetailsResponse':
                 if (await this.vaultTimeoutService.isLocked()) {
                     return;

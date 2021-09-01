@@ -556,15 +556,13 @@ export default class MainBackground {
                     await this.loadNoLoginsContextMenuOptions(this.i18nService.t('noMatchingLogins'));
                 }
 
-                const firstCipher = ciphers[0] || null;
-                if (firstCipher) {
-                    BrowserApi.tabSendMessageData(tab, 'injectPwPopper', {
-                        cipher: {
-                            name: firstCipher.name,
-                            username: firstCipher.login.username
-                        }
-                    });
-                }
+                BrowserApi.tabSendMessageData(tab, 'injectPwPopper', {
+                    ciphers: ciphers.map(cipher => ({
+                        id: cipher.id,
+                        name: cipher.name,
+                        username: cipher.login.username
+                    }))
+                });
 
                 this.sidebarActionSetBadgeText(theText, tabId);
                 this.browserActionSetBadgeText(theText, tabId);

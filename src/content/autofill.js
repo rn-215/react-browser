@@ -995,7 +995,7 @@ import { createPopper } from '@popperjs/core';
         const whiteList = ["email", "e-mail", "password", "username", "user", "user-id", "user_id", "login"];
         const fields = pageDetails.fields.filter(field => field.visible && (whiteList.indexOf(field.type.toLowerCase()) !== -1 || whiteList.indexOf(field.htmlName.toLowerCase()) !== -1 || whiteList.indexOf(field.htmlID.toLowerCase()) !== -1));
         const elements = fields.map(field => getElementByOpId(field.opid));
-        const cipher = msg.data.cipher;
+        const ciphers = msg.data.ciphers;
 
         if (elements.length) {
             const pwPopId = "__bitwarden_password_popper__";
@@ -1003,26 +1003,24 @@ import { createPopper } from '@popperjs/core';
             if (!document.querySelector(`#${pwPopId}`)) {
                 popEl = document.createElement("div");
                 popEl.setAttribute("id", pwPopId);
-                popEl.innerHTML = `
-                <div class="suggestion">
-                    <img src='http://www.google.com/s2/favicons?sz=64&domain=${window.location.hostname}' />
+                const suggestions = ciphers.map(cipher => `<div class="suggestion __bitwarden_suggestion_item__" data-cipher-id="${cipher.id}">
+                    <img src='https://icons.bitwarden.net/${window.location.hostname}/icon.png' />
                     <div class="info">
                         <div class="site">${cipher.name}</div>
                         <div class="username">${cipher.username}</div>
                     </div>
-                </div>
-                <div class="note">Cmd + Shift + L to fill</div>
-                `;
+                </div>`);
+                popEl.innerHTML = `${suggestions.join("")}<div class="note">Cmd + Shift + L to fill</div>`;
 
                 const styleSheetEl = document.createElement("style");
                 styleSheetEl.type = "text/css";
                 styleSheetEl.innerText = `
                     #${pwPopId} {
-                        min-width: 200px;
+                        min-width: 280px;
                         background: #fff;
                         box-shadow: 0 0.250em 0.375em rgba(50,50,93,.12), 0 0.063em 0.188em rgba(0,0,0,.14);
-                        border: 1px solid #eee;
-                        border-radius: 3px;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
                         color: #000;
                         display: none;
                     }
@@ -1033,23 +1031,32 @@ import { createPopper } from '@popperjs/core';
                         border-bottom: 1px solid #eee;
                     }
 
+                    #${pwPopId} .suggestion:hover {
+                        background: #eee;
+                    }
+
                     #${pwPopId} .suggestion .info {
                         flex: 1;
                         display: flex;
                         flex-direction: column;
                         margin-left: 8px;
+                        height: 32px;
+                        pointer-events: none;
                     }
 
                     #${pwPopId} .suggestion img {
-                        width: 40px;
-                        height: 40px;
+                        width: 32px;
+                        height: 32px;
+                        pointer-events: none;
                     }
 
                     #${pwPopId} .suggestion .site {
                         font-weight: bold;
+                        pointer-events: none;
                     }
 
                     #${pwPopId} .suggestion .username {
+                        pointer-events: none;
                     }
 
                     #${pwPopId} .note {
@@ -1094,7 +1101,9 @@ import { createPopper } from '@popperjs/core';
                 };
 
                 const hide = () => {
-                    document.querySelector(`#${pwPopId}`).removeAttribute('data-show');
+                    setTimeout(() => {
+                        document.querySelector(`#${pwPopId}`).removeAttribute('data-show');
+                    }, 100);
                 };
 
                 showEvents.forEach(event => {
@@ -1104,7 +1113,18 @@ import { createPopper } from '@popperjs/core';
                 hideEvents.forEach(event => {
                     el.addEventListener(event, hide);
                 });
+            });
 
+            document.querySelectorAll(".__bitwarden_suggestion_item__").forEach((item) => {
+                item.addEventListener('click', function(event) {
+                    const target = event.currentTarget;
+                    const id = target.getAttribute("data-cipher-id");
+                    chrome.runtime.sendMessage({
+                        command: 'cipherSuggestionSelected',
+                        tab: msg.tab,
+                        cipherId: id
+                    });
+                }, false);
             });
         }
     }
